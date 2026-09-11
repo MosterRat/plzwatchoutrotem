@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rotem 피하기!</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #222;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'sans-serif';
+      color: white;
+      user-select: none;
+    }
+    #gameContainer {
+      position: relative;
+    }
+    canvas {
+      border: 3px solid #fff;
+      background-color: #111;
+      box-shadow: 0 0 20px rgba(0,255,255,0.3);
+      display: block;
+    }
+    
+    .ui-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      box-sizing: border-box;
+      padding: 20px;
+    }
+
+    .ui-title {
+      font-size: 28px;
+      font-weight: bold;
+      color: #00ff88;
+      margin-bottom: 20px;
+      text-shadow: 0 0 10px rgba(0,255,136,0.5);
+    }
+
+    .ui-subtext {
+      font-size: 16px;
+      color: #ddd;
+      margin-bottom: 30px;
+      line-height: 1.5;
+    }
+
+    .game-btn {
+      padding: 12px 30px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #fff;
+      background: #ff4757;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: transform 0.1s, background 0.2s;
+      box-shadow: 0 4px 15px rgba(255,71,87,0.4);
+    }
+
+    .game-btn:hover {
+      background: #ff6b81;
+      transform: scale(1.05);
+    }
+
+    .game-btn:active {
+      transform: scale(0.95);
+    }
+
+    #gameOverScreen {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div id="gameContainer">
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+  <!-- 1. 게임 시작 화면 -->
+  <div id="startScreen" class="ui-screen">
+    <div class="ui-title">Rotem 피하기!</div>
+    <div class="ui-subtext">
+      떨어지는 Rotem을 요리조리 피하세요!<br><br>
+      <b>조작법:</b><br>
+      키보드 방향키 [ ← / → ] 또는 [ A / D ]
+    </div>
+    <button class="game-btn" onclick="startGame()">게임 시작</button>
+  </div>
+
+  <!-- 2. 게임 오버 화면 -->
+  <div id="gameOverScreen" class="ui-screen">
+    <div class="ui-title" style="color: #ff4757;">GAME OVER</div>
+    <div class="ui-subtext" id="finalScoreText">SCORE: 0</div>
+    <button class="game-btn" onclick="resetGame()">다시 하기 (R)</button>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  
+  const startScreen = document.getElementById('startScreen');
+  const gameOverScreen = document.getElementById('gameOverScreen');
+  const finalScoreText = document.getElementById('finalScoreText');
+
+  // rotem 이미지 설정
+  const obstacleImageSources = [
+    'rotem1.png',
+    'rotem2.png'
+    'rotem3.png'
+    'rotem4.png'
+    'rotem5.png'
+    'rotem6.png'
+    'rotem7.png'
+  ];
+
+  const obstacleImages = obstacleImageSources.map(src => {
+    const img = new Image();
+    img.src = src;
+    return img;
+  });
+
+  let isGameStarted = false;
+  let isGameOver = false;
+  let score = 0;
+  let frameCount = 0;
+
+  const player = {
+    x: canvas.width / 2 - 20,
+    y: canvas.height - 60,
+    width: 40,
+    height: 40,
+    speed: 6
+  };
+
+  const obstacles = [];
+
+  const keys = {};
+  window.addEventListener('keydown', (e) => {
+    keys[e.key] = true;
+    if (isGameOver && (e.key === 'r' || e.key === 'R' || e.key === 'ㄱ')) {
+      resetGame();
+    }
+  });
+  window.addEventListener('keyup', (e) => {
+    keys[e.key] = false;
+  });
+
+  let lastImageIndex = -1;
+
+  function createObstacle() {
+  const size = Math.random() * 30 + 45;
+  
+  // 사진이 2개 이상일 때, 직전에 나온 사진과 다른 사진이 뽑힐 때까지 다시 뽑기
+  let randomIndex;
+  if (obstacleImages.length > 1) {
+    do {
+      randomIndex = Math.floor(Math.random() * obstacleImages.length);
+    } while (randomIndex === lastImageIndex);
+  } else {
+    randomIndex = 0;
+  }
+  
+  lastImageIndex = randomIndex; // 이번에 뽑힌 번호 저장
+  const randomImg = obstacleImages[randomIndex];
+  
+  obstacles.push({
+    x: Math.random() * (canvas.width - size),
+    y: -size,
+    width: size,
+    height: size,
+    speed: Math.random() * 3 + 3 + (score / 120),
+    img: randomImg
+  });
+}
+
+  function checkCollision(player, obs) {
+    const paddingX = obs.width * 0.2;
+    const paddingY = obs.height * 0.2;
+
+    const obsHitbox = {
+      x: obs.x + paddingX,
+      y: obs.y + paddingY,
+      width: obs.width - (paddingX * 2),
+      height: obs.height - (paddingY * 2)
+    };
+
+    return (
+      player.x < obsHitbox.x + obsHitbox.width &&
+      player.x + player.width > obsHitbox.x &&
+      player.y < obsHitbox.y + obsHitbox.height &&
+      player.y + player.height > obsHitbox.y
+    );
+  }
+
+  function startGame() {
+    startScreen.style.display = 'none';
+    isGameStarted = true;
+    resetGame();
+  }
+
+  function resetGame() {
+    isGameOver = false;
+    score = 0;
+    frameCount = 0;
+    obstacles.length = 0;
+    player.x = canvas.width / 2 - 20;
+    gameOverScreen.style.display = 'none';
+    requestAnimationFrame(update);
+  }
+
+  function update() {
+    if (!isGameStarted || isGameOver) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+      player.x -= player.speed;
+    }
+    if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+      player.x += player.speed;
+    }
+
+    if (player.x < 0) player.x = 0;
+    if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+
+    ctx.fillStyle = '#00ff88';
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+
+    frameCount++;
+    const spawnRate = Math.max(15, 45 - Math.floor(score / 60));
+    if (frameCount % spawnRate === 0) {
+      createObstacle();
+    }
+
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      const obs = obstacles[i];
+      obs.y += obs.speed;
+
+      if (obs.img.complete && obs.img.naturalWidth !== 0) {
+        ctx.drawImage(obs.img, obs.x, obs.y, obs.width, obs.height);
+      } else {
+        ctx.fillStyle = '#ff4757';
+        ctx.beginPath();
+        ctx.arc(obs.x + obs.width/2, obs.y + obs.height/2, obs.width/2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (checkCollision(player, obs)) {
+        isGameOver = true;
+        finalScoreText.innerText = `최종 점수: ${score}점`;
+        gameOverScreen.style.display = 'flex';
+      }
+
+      if (obs.y > canvas.height) {
+        obstacles.splice(i, 1);
+        score += 10;
+      }
+    }
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText(`SCORE: ${score}`, 15, 35);
+
+    requestAnimationFrame(update);
+  }
+</script>
+
+</body>
+</html>
