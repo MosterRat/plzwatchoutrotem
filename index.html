@@ -89,7 +89,6 @@
       display: none;
     }
 
-    /* 모바일 가상 패드 컨트롤러 스타일 */
     #touchControls {
       display: flex;
       justify-content: space-between;
@@ -137,7 +136,6 @@
 <div id="gameContainer">
   <canvas id="gameCanvas" width="400" height="600"></canvas>
 
-  <!-- 1. 게임 시작 화면 -->
   <div id="startScreen" class="ui-screen">
     <div class="ui-title">Rotem 피하기!</div>
     <div class="ui-subtext">
@@ -148,7 +146,6 @@
     <button id="startButtonBtn" class="game-btn">게임 시작</button>
   </div>
 
-  <!-- 2. 게임 오버 화면 -->
   <div id="gameOverScreen" class="ui-screen">
     <div class="ui-title" style="color: #ff4757;">GAME OVER</div>
     <div class="ui-subtext" id="finalScoreText">최종 점수: 0점</div>
@@ -156,10 +153,10 @@
   </div>
 </div>
 
-<!-- 모바일 전용 터치 컨트롤러 -->
+<!-- 모바일 전용 터치 컨트롤러 (스페이스바 문구로 수정 완료) -->
 <div id="touchControls">
   <div id="btnLeft" class="touch-btn">◀ 왼쪽</div>
-  <div id="btnJump" class="touch-btn jump">점프 🔼</div>
+  <div id="btnJump" class="touch-btn jump">스페이스바 ␣</div>
   <div id="btnRight" class="touch-btn">오른쪽 ▶</div>
 </div>
 
@@ -174,7 +171,6 @@
     const startButtonBtn = document.getElementById('startButtonBtn');
     const resetButtonBtn = document.getElementById('resetButtonBtn');
 
-    // 모바일 버튼 요소
     const btnLeft = document.getElementById('btnLeft');
     const btnRight = document.getElementById('btnRight');
     const btnJump = document.getElementById('btnJump');
@@ -217,7 +213,6 @@
     const obstacles = [];
     const keys = {};
 
-    // 키보드 이벤트 (PC용)
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space') e.preventDefault();
       keys[e.key] = true;
@@ -233,7 +228,6 @@
       keys[e.code] = false;
     });
 
-    // 터치 및 마우스 이벤트 (모바일용)
     function setupTouchButton(element, actionKey) {
       const startAction = (e) => {
         e.preventDefault();
@@ -307,27 +301,22 @@
     function drawPlayer(x, y, width, height) {
       const centerX = x + width / 2;
 
-      // 머리
       ctx.fillStyle = '#ffcc99';
       ctx.beginPath();
       ctx.arc(centerX, y + 10, 9, 0, Math.PI * 2);
       ctx.fill();
 
-      // 눈
       ctx.fillStyle = '#222';
       ctx.fillRect(centerX - 4, y + 8, 2, 3);
       ctx.fillRect(centerX + 2, y + 8, 2, 3);
 
-      // 몸통
       ctx.fillStyle = '#00ff88';
       ctx.fillRect(x + 5, y + 19, width - 10, 18);
 
-      // 팔
       ctx.fillStyle = '#ffcc99';
       ctx.fillRect(x + 1, y + 20, 4, 12);
       ctx.fillRect(x + width - 5, y + 20, 4, 12);
 
-      // 다리
       ctx.fillStyle = '#333344';
       if (player.isJumping) {
         ctx.fillRect(x + 6, y + 37, 7, 9);
