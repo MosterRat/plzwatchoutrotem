@@ -96,7 +96,8 @@
     <div class="ui-subtext">
       떨어지는 Rotem을 요리조리 피하세요!<br><br>
       <b>조작법:</b><br>
-      키보드 방향키 [ ← / → ] 또는 [ A / D ]
+      이동: 방향키 [ ← / → ]<br>
+      점프: [ Spacebar ]
     </div>
     <button id="startButtonBtn" class="game-btn">게임 시작</button>
   </div>
@@ -141,19 +142,33 @@
     let score = 0;
     let frameCount = 0;
 
+    // 바닥 기본 높이
+    const groundY = canvas.height - 60;
+
+    // 사람 캐릭터 설정 및 점프 물리 속성
     const player = {
-      x: canvas.width / 2 - 20,
-      y: canvas.height - 60,
-      width: 40,
-      height: 40,
-      speed: 6
+      x: canvas.width / 2 - 15,
+      y: groundY,
+      width: 30,
+      height: 50,
+      speed: 6,
+      velocityY: 0,
+      gravity: 0.8,
+      jumpPower: -13,
+      isJumping: false
     };
 
     const obstacles = [];
     const keys = {};
 
     window.addEventListener('keydown', (e) => {
+      // 스페이스바 누를 때 브라우저 스크롤 방지
+      if (e.code === 'Space') {
+        e.preventDefault();
+      }
       keys[e.key] = true;
+      keys[e.code] = true;
+
       if (isGameOver && (e.key === 'r' || e.key === 'R' || e.key === 'ㄱ')) {
         resetGame();
       }
@@ -161,9 +176,9 @@
 
     window.addEventListener('keyup', (e) => {
       keys[e.key] = false;
+      keys[e.code] = false;
     });
 
-    // 버튼 클릭 이벤트 리스너 등록
     startButtonBtn.addEventListener('click', startGame);
     resetButtonBtn.addEventListener('click', resetGame);
 
@@ -213,6 +228,43 @@
       );
     }
 
+    // 사람 캐릭터 그리기 함수
+    function drawPlayer(x, y, width, height) {
+      const centerX = x + width / 2;
+
+      // 1. 머리 (살구색)
+      ctx.fillStyle = '#ffcc99';
+      ctx.beginPath();
+      ctx.arc(centerX, y + 10, 9, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 눈
+      ctx.fillStyle = '#222';
+      ctx.fillRect(centerX - 4, y + 8, 2, 3);
+      ctx.fillRect(centerX + 2, y + 8, 2, 3);
+
+      // 2. 몸통 (민트색 옷)
+      ctx.fillStyle = '#00ff88';
+      ctx.fillRect(x + 5, y + 19, width - 10, 18);
+
+      // 3. 팔
+      ctx.fillStyle = '#ffcc99';
+      ctx.fillRect(x + 1, y + 20, 4, 12);
+      ctx.fillRect(x + width - 5, y + 20, 4, 12);
+
+      // 4. 다리 (바지)
+      ctx.fillStyle = '#333344';
+      if (player.isJumping) {
+        // 점프 중일 때 다리 굽히는 효과
+        ctx.fillRect(x + 6, y + 37, 7, 9);
+        ctx.fillRect(x + width - 13, y + 37, 7, 9);
+      } else {
+        // 평지 서 있을 때 다리
+        ctx.fillRect(x + 6, y + 37, 7, 13);
+        ctx.fillRect(x + width - 13, y + 37, 7, 13);
+      }
+    }
+
     function startGame() {
       startScreen.style.display = 'none';
       isGameStarted = true;
@@ -224,7 +276,10 @@
       score = 0;
       frameCount = 0;
       obstacles.length = 0;
-      player.x = canvas.width / 2 - 20;
+      player.x = canvas.width / 2 - player.width / 2;
+      player.y = groundY;
+      player.velocityY = 0;
+      player.isJumping = false;
       gameOverScreen.style.display = 'none';
       requestAnimationFrame(update);
     }
@@ -234,18 +289,37 @@
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if (keys['ArrowLeft'] || keys['a'] || keys['A'] || keys['ㅁ']) {
+      // 이동 제어 (방향키만 허용)
+      if (keys['ArrowLeft']) {
         player.x -= player.speed;
       }
-      if (keys['ArrowRight'] || keys['d'] || keys['D'] || keys['ㅇ']) {
+      if (keys['ArrowRight']) {
         player.x += player.speed;
       }
 
+      // 점프 제어 (Spacebar)
+      if (keys['Space'] && !player.isJumping) {
+        player.velocityY = player.jumpPower;
+        player.isJumping = true;
+      }
+
+      // 중력 및 점프 수치 적용
+      player.velocityY += player.gravity;
+      player.y += player.velocityY;
+
+      // 바닥 착지 처리
+      if (player.y >= groundY) {
+        player.y = groundY;
+        player.velocityY = 0;
+        player.isJumping = false;
+      }
+
+      // 좌우 화면 경계 제한
       if (player.x < 0) player.x = 0;
       if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
 
-      ctx.fillStyle = '#00ff88';
-      ctx.fillRect(player.x, player.y, player.width, player.height);
+      // 사람 캐릭터 렌더링
+      drawPlayer(player.x, player.y, player.width, player.height);
 
       frameCount++;
       const spawnRate = Math.max(15, 45 - Math.floor(score / 60));
